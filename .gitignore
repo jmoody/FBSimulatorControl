@@ -47,3 +47,6 @@ fbsimctl/Carthage/Checkouts
 
 output/
 .clang-format
+
+## AppCode
+.idea
