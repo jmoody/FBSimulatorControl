@@ -46,9 +46,14 @@
 {
   NSURL *url = [NSURL fileURLWithPath:self.path];
   const char *cFileSystemRep = [url fileSystemRepresentation];
-  void *handle = dlopen(cFileSystemRep, RTLD_NOW|RTLD_GLOBAL);
+
+  char *dlopenError;
+
   [logger.debug logFormat:@"Attempting to load: %s", cFileSystemRep];
-  if (!handle) {
+  dlopen(cFileSystemRep, RTLD_LAZY);
+  dlopenError = dlerror();
+
+  if (dlopenError) {
     NSString *message = [NSString stringWithFormat:@"Could not load dylib %@ with dlopen: %s",
                          self.path, dlerror()];
     [logger.debug logFormat:@"%@", message];
