@@ -6,6 +6,7 @@ from util import (
     WebServer,
     Defaults,
     Fixtures,
+    Metal,
     log,
     make_ipa,
 )
@@ -30,6 +31,7 @@ class FBSimctlTestCase(unittest.TestCase):
         self.methodName = methodName
         self.use_custom_set = use_custom_set
         self.fbsimctl = FBSimctl(fbsimctl_path, set_path)
+        self.metal = Metal()
 
     def tearDown(self):
         action = 'delete' if self.use_custom_set else 'shutdown'
@@ -181,7 +183,6 @@ class WebserverSimulatorTestCase(FBSimctlTestCase):
         self.port = port
 
     def extractSimulatorSubjects(self, response):
-        print(response['subject'])
         self.assertEqual(response['status'], 'success')
         return [
             Simulator(event['subject']).get_udid()
@@ -250,7 +251,7 @@ class WebserverSimulatorTestCase(FBSimctlTestCase):
             ]
             self.assertEqual(expected.sort(), actual.sort())
             actual = self.extractSimulatorSubjects(
-                webserver.get(iphone6.get_udid() + 'list'),
+                webserver.get(iphone6.get_udid() + '/list'),
             )
             expected = [iphone6.get_udid()]
 
@@ -265,6 +266,16 @@ class WebserverSimulatorTestCase(FBSimctlTestCase):
                 'data': data,
             })
         self.assertEventSuccesful([simulator.get_udid(), 'shutdown'], 'shutdown')
+
+    def testScreenshot(self):
+        if self.metal.is_supported() is False:
+            log.info('Metal not supported, skipping testScreenshot')
+            return
+        simulator = self.assertCreatesSimulator(['iPhone 6'])
+        self.assertEventSuccesful([simulator.get_udid(), 'boot'], 'boot')
+        with self.launchWebserver() as webserver:
+            webserver.get_binary(simulator.get_udid() + '/screenshot.png')
+            webserver.get_binary(simulator.get_udid() + '/screenshot.jpeg')
 
 
 class SingleSimulatorTestCase(FBSimctlTestCase):
@@ -300,6 +311,9 @@ class SingleSimulatorTestCase(FBSimctlTestCase):
         self.assertEventSuccesful([simulator.get_udid(), 'shutdown'], 'shutdown')
 
     def testBootsDirectly(self):
+        if self.metal.is_supported() is False:
+            log.info('Metal not supported, skipping testBootsDirectly')
+            return
         simulator = self.assertCreatesSimulator([self.device_type])
         self.assertEventSuccesful([simulator.get_udid(), 'boot', '--direct-launch'], 'boot')
         self.assertEventSuccesful([simulator.get_udid(), 'shutdown'], 'shutdown')
@@ -360,6 +374,9 @@ class SingleSimulatorTestCase(FBSimctlTestCase):
             shutil.rmtree(tmpdir, ignore_errors=True)
 
     def testRecordsVideo(self):
+        if self.metal.is_supported() is False:
+            log.info('Metal not supported, skipping testRecordsVideo')
+            return
         (simulator, _) = self.testLaunchesSystemApplication()
         arguments = [
             simulator.get_udid(), 'record', 'start',

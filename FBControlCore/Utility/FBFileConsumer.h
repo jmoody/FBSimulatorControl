@@ -14,7 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  A Consumer of a File's Data.
  */
-@protocol FBFileDataConsumer <NSObject>
+@protocol FBFileConsumer <NSObject>
 
 /**
  Consumes the provided text data.
@@ -27,6 +27,21 @@ NS_ASSUME_NONNULL_BEGIN
  Consumes an EOF.
  */
 - (void)consumeEndOfFile;
+
+@end
+
+/**
+ Wraps FBFileConsumer Implementations with the ability to await EOF events.
+ */
+@interface FBAwaitableFileDataConsumer : NSObject<FBFileConsumer>
+
+/**
+ Creates an Awaitable File Data Consumer.
+
+ @param consumer the underlying consumer
+ @return a new Data Consumer.
+ */
++ (instancetype)consumerWithConsumer:(id<FBFileConsumer>)consumer;
 
 /**
  Await for the Consumer to finish consuming the input.
@@ -47,7 +62,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  A Reader of Text Data, calling the callback when a full line is available.
  */
-@interface FBLineFileDataConsumer : NSObject <FBFileDataConsumer>
+@interface FBLineFileConsumer : NSObject <FBFileConsumer>
 
 /**
  Creates a Consumer of lines from a block.
@@ -72,7 +87,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  A Reader that accumilates data.
  */
-@interface FBAccumilatingFileDataConsumer : NSObject <FBFileDataConsumer>
+@interface FBAccumilatingFileConsumer : NSObject <FBFileConsumer>
 
 /**
  Initializes the reader with empty data.
@@ -99,7 +114,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  A Composite Consumer.
  */
-@interface FBCompositeFileDataConsumer : NSObject <FBFileDataConsumer>
+@interface FBCompositeFileConsumer : NSObject <FBFileConsumer>
 
 /**
  A Consumer of Consumers.
@@ -107,7 +122,7 @@ NS_ASSUME_NONNULL_BEGIN
  @param consumers the consumers to compose.
  @return a new consumer.
  */
-+ (instancetype)consumerWithConsumers:(NSArray<id<FBFileDataConsumer>> *)consumers;
++ (instancetype)consumerWithConsumers:(NSArray<id<FBFileConsumer>> *)consumers;
 
 @end
 

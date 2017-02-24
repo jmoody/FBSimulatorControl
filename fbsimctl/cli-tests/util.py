@@ -212,6 +212,13 @@ class FBSimctl:
             timeout=timeout,
         )
 
+class Metal:
+    def __init__(self):
+        subprocess.call(['xcrun', 'swiftc', 'supports_metal.swift'])
+        self.__supports_metal_exit_code = subprocess.call(['./supports_metal'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def is_supported(self):
+        return self.__supports_metal_exit_code == 0
 
 class WebServer:
     def __init__(self, port):
@@ -223,6 +230,13 @@ class WebServer:
             method='GET',
         )
         return self._perform_request(request)
+
+    def get_binary(self, path):
+        request = urllib.request.Request(
+            url=self._make_url(path),
+            method='GET',
+        )
+        return self._perform_request_binary(request)
 
     def post(self, path, payload):
         data = json.dumps(payload).encode('utf-8')
@@ -253,6 +267,10 @@ class WebServer:
         with urllib.request.urlopen(request) as f:
             response = f.read().decode('utf-8')
             return json.loads(response)
+
+    def _perform_request_binary(self, request):
+        with urllib.request.urlopen(request) as f:
+            return f.read()
 
 
 class Fixtures:

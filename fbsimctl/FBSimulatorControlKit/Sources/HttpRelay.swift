@@ -99,18 +99,7 @@ extension ActionPerformer {
   }
 
   func runWithSingleSimulator<A>(_ query: FBiOSTargetQuery, action: (FBSimulator) throws -> A) throws -> A {
-    let targets = self.commandPerformer.runnerContext(HttpEventReporter()).query(query)
-    if targets.count > 1 {
-      throw QueryError.TooManyMatches(targets, 1)
-    }
-    guard let target = targets.first else {
-      throw QueryError.NoMatches
-    }
-    guard let simulator = target as? FBSimulator else {
-      let expected = FBiOSTargetTypeStringsFromTargetType(FBiOSTargetType.simulator).first!
-      let actual = FBiOSTargetTypeStringsFromTargetType(target.targetType).first!
-      throw QueryError.WrongTarget(expected, actual)
-    }
+    let simulator = try self.commandPerformer.runnerContext(HttpEventReporter()).querySingleSimulator(query)
     var result: A? = nil
     var error: Error? = nil
     DispatchQueue.main.sync {
@@ -273,23 +262,34 @@ struct ActionRoute : Route {
 }
 
 struct ScreenshotRoute : Route {
+  enum Format : String {
+    case jpeg = "jpeg"
+    case png = "png"
+  }
+  let format: ScreenshotRoute.Format
+
   var method: HttpMethod { get {
     return HttpMethod.GET
   }}
 
   var endpoint: String { get {
-    return "screenshot.png"
+    return "screenshot.\(self.format.rawValue)"
   }}
 
   func responseHandler(performer: ActionPerformer) -> HttpResponseHandler {
+    let format = self.format
     return SimpleResponseHandler { request in
       guard let query = try SimpleResponseHandler.extractQueryFromPath(request) else {
         throw QueryError.NoneProvided
       }
       let imageData: Data = try performer.runWithSingleSimulator(query) { simulator in
-        try simulator.connect().connectToFramebuffer().image.pngImageData()
+        let image = try simulator.connect().connectToFramebuffer().image
+        switch (format) {
+        case .jpeg: return try image.jpegImageData()
+        case .png: return try image.pngImageData()
+        }
       }
-      return HttpResponse(statusCode: 200, body: imageData, contentType: "image/png")
+      return HttpResponse(statusCode: 200, body: imageData, contentType: "image/" + self.format.rawValue)
     }
   }
 }
@@ -310,10 +310,10 @@ class HttpRelay : Relay {
   init(portNumber: in_port_t, performer: ActionPerformer) {
     self.portNumber = portNumber
     self.performer = performer
-
     self.httpServer = HttpServer(
       port: portNumber,
-      routes: HttpRelay.actionRoutes.flatMap { $0.httpRoutes(performer) }
+      routes: HttpRelay.actionRoutes.flatMap { $0.httpRoutes(performer) },
+      logger: FBControlCoreGlobalConfiguration.defaultLogger()
     )
   }
 
@@ -481,7 +481,8 @@ class HttpRelay : Relay {
       self.tapRoute,
       self.terminateRoute,
       self.uploadRoute,
-      ScreenshotRoute(),
+      ScreenshotRoute(format: ScreenshotRoute.Format.png),
+      ScreenshotRoute(format: ScreenshotRoute.Format.jpeg),
     ]
   }}
 }
